@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <windows.h>
+#include <winioctl.h>
+
 #include "terminal.h"
 
 // Die 
@@ -9,6 +12,7 @@ void die(const char* s)
     perror(s);
     exit(1);
 }
+
 // Enable VT Mode
 int enable_vt(void)
 {
@@ -57,13 +61,19 @@ int enable_vt(void)
 
 // Arrow Sequence
 int is_arrow_sequence(char* s) {
-    return s[0] == '[' && s[1] >= 'A' && s[1] <= 'D';
+    read_sequence(s, 1);
+    return  s[0] >= 'A' && s[0] <= 'D';
 }
 
 // Control Arrow Sequence
 int is_ctrl_arrow_sequence(char* s)
 {
-    return s[0] == ';' && s[1] == '5';
+    if(s[0] == '1') {
+        read_sequence(s, 3);
+        s[4] = '\0';
+        return s[0] == ';' && s[1] == '5' && s[2] >= 'A' && s[2] <= 'D';
+    } 
+    return 0;
 }
 
 // Clear Screen
@@ -121,7 +131,8 @@ void get_screen_size(short* width, short* height)
 void set_scrolling_region(short t, short b)
 {
     char buffer[8];
-    sprintf_s(buffer, 8, CSI "%d;%dr", t, b);
+    int ret = sprintf_s(buffer, 8, CSI "%d;%dr", t, b);
+    fwrite(buffer, ret, 1, stdout);
 }
 
 // Goto Position
@@ -148,18 +159,18 @@ void goto_row(short row)
 }
 
 // Hide Cursor
-void hide_cursor()
+void hide_cursor(void)
 {
     fwrite(CSI "?25l", 6, 1, stdout);
 }
 
 // Display Cursor
-void display_cursor()
+void display_cursor(void)
 {
     fwrite(CSI "?25h", 6, 1, stdout);
 }
 
-void delete_line() 
+void delete_line(void) 
 {
     fwrite(CSI "1M", 4, 1, stdout);
 }
@@ -171,14 +182,19 @@ void delete_lines(short count)
     fwrite(buffer, ret, 1, stdout);
 }
 
-void write_line(char* message, short size)
+void write_line(char* message)
 {
-    fwrite(message, size, 1, stdout);
+    fwrite(message, sizeof(message) - 1, 1, stdout);
 }
 
-void read_sequence(char* sequence, short count)
+int read_sequence(char* sequence, short count)
 {
-    for (int i = 0; i < count; ++i) {
-        fread(&sequence[i],1,1,stdin);
+    int i = 0;
+    for (i = 0; i < count; ++i) {
+        if(fread(&sequence[i],1,1,stdin) != 1) {
+            break;
+        }
     }
+    
+    return i == count;
 }
