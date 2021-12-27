@@ -4,12 +4,15 @@
 #define _STR_(s) #s
 #define STR(s) _STR_(s)
 
-#define SB_NULL {NULL,0}
-#define SB_NEW(str_lit)             \
-(StringBuffer) {                    \
-    .length = sizeof(str_lit) - 1,  \
-    .buffer = str_lit,              \
+#define SB_NULL (StringBuffer) {    \
+    .buffer = NULL,                 \
+    .length = 0                     \
 }                                   \
+
+#define SB_NEW(str_lit) StringBuffer) {     \
+    .length = sizeof(str_lit) - 1,          \
+    .buffer = str_lit,                      \
+}                                           \
 
 typedef struct string_t {
     char* buffer;

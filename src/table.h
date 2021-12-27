@@ -10,6 +10,8 @@ typedef unsigned char u8;
 
 enum input_sequences {
     EXIT_KEY = -1,
+    ENTER_KEY = 13,
+    SPACE_KEY = 32,
     BACKSPACE = 127,
     ARROW_UP = 1000,
     ARROW_DOWN,
@@ -22,7 +24,6 @@ enum input_sequences {
     DELETE_KEY,
     COMMAND_KEY, 
     GOTO_KEY,
-    ENTER_KEY,
     CTRL_ARROW_UP = 2000,
     CTRL_ARROW_DOWN,
     CTRL_ARROW_LEFT,
@@ -65,5 +66,6 @@ void position_cursor(int keycode, short* x, short* y);
 void print_status_message(Table *t, char* message, StringBuffer* sb);
 int handle_input(char c);
 int read_file(char* filename, char* buffer[MAX_ROWS][MAX_COLS]);
+void delete_char(StringBuffer* sb, int at);
 
 #endif

@@ -28,10 +28,10 @@ void draw_frame(short width, short height)
 
             } else {
 
-                if (x == 1) 
+                if (x == 1)
                     sb_append(&sb, "a", 1);
 
-                 else if (x == width ) 
+                else if (x == width )
                     sb_append(&sb, "a", 1);
 
             }
@@ -60,12 +60,10 @@ void table_create(Table* t, short width, short height)
         .bottom = 1
     };
 
-    t->rows = height;
-    t->cols = width;
-
     for (short y = 0; y < MAX_ROWS; ++y) {
         for (short x = 0; x < MAX_COLS; ++x) {
             Cell* cell = &t->grid[y][x];
+            cell->value = SB_NULL;
             cell->x_pos = (x * CELLSIZE) + t->vp.left;
             cell->y_pos = y + t->vp.top;
         }
@@ -75,30 +73,29 @@ void table_create(Table* t, short width, short height)
 void table_draw(Table* t)
 {
     StringBuffer sb = SB_NULL;
-    
     sb_append(&sb, GOTO_ROW(2), 4);
     sb_append(&sb, GOTO_COL(2), 4);
-    for(int x = t->vp.left; x < t->vp.right; ++x) {
-        
+    for (int x = t->vp.left; x < t->vp.right; ++x) {
+
         char buffer[8];
         int ret = sprintf_s(buffer, 8, "%c", (x / CELLSIZE) + 64);
-        
-        if (x % CELLSIZE == 4) 
+
+        if (x % CELLSIZE == 4)
             sb_append(&sb, buffer, ret);
-        else 
-            sb_append(&sb, " ", 1); 
+        else
+            sb_append(&sb, " ", 1);
     }
-    
-    for(int y = t->vp.top; y < t->vp.bottom; ++y) {
+
+    for (int y = t->vp.top; y < t->vp.bottom; ++y) {
         char row_buffer[8];
         int ret = sprintf_s(row_buffer, 8, CSI "%dd", y);
         sb_append(&sb, GOTO_COL(2), 4);
         sb_append(&sb, row_buffer, ret);
-        
+
         char buffer[8];
         ret = sprintf_s(buffer, 8, "%3d\n", y - 2);
 
-        sb_append(&sb, buffer , ret);
+        sb_append(&sb, buffer, ret);
     }
 
     for (short row = t->vp.top; row < t->vp.bottom; ++row) {
@@ -112,40 +109,37 @@ void table_draw(Table* t)
 
             short x = (col - t->vp.left) / CELLSIZE;
             short y = row - t->vp.top;
-            Cell cell = t->grid[y][x];
+            Cell* cell = &t->grid[y][x];
 
             // @Refactor,
-            // @TODO: Blinking cursor for single cell,
             if (y >= t->cursor.top && y < t->cursor.bottom)
                 if (x  >= t->cursor.left && x < t->cursor.right)
                     sb_append(&sb, COLOR(INVERTED), 4);
 
-
-            if (cell.x_pos == col)
+            if (cell->x_pos == col) {
                 sb_append(&sb, "|", 1);
-            else
+
+            } else if ((col - t->vp.left) % CELLSIZE == 1) {
+                if (cell->value.length > 0) {
+                    sb_append(&sb, CSI STR(CELLSIZE) "X", 4);
+                    sb_append(&sb, cell->value.buffer, cell->value.length);
+                    col += cell->value.length - 1;
+                    continue;
+                } else {
+                    sb_append(&sb, " ", 1);
+                }
+
+            } else {
                 sb_append(&sb, " ", 1);
-
+            }
             sb_append(&sb, COLOR(DEFAULT), 4);
-
         }
     }
 
     char status_message[8];
     sprintf_s(status_message, 8, "%c%d", t->cursor.left + 65, t->cursor.top + 1);
     print_status_message(t, status_message, &sb);
-    
-    short x = 0, y = 0;
-    get_cursor_xy(t, &x, &y);
-    
-    char cursor_x[8];
-    int ret = sprintf_s(cursor_x, 8, CSI "%dG", x);
-    sb_append(&sb, cursor_x, ret);
-    
-    char cursor_y[8];
-    ret = sprintf_s(cursor_y, 8, CSI "%dd", y);
-    sb_append(&sb, cursor_y, ret);
-    
+
     fwrite(sb.buffer, sb.length, 1, stdout);
     sb_free(&sb);
 }
@@ -211,7 +205,7 @@ void modify_selection(Table* t, short x, short y)
         return;
     }
 
-} 
+}
 
 // determines & stores the value which will adjust the cursors position/selection
 void position_cursor(int keycode, short* x, short* y)
@@ -271,15 +265,14 @@ int read_file(char* filename, char* buffer[MAX_ROWS][MAX_COLS])
 }
 
 void print_status_message(Table* t, char* message, StringBuffer* sb)
-{ 
+{
     int ret;
     char row_buffer[8];
     ret = sprintf_s(row_buffer, 8, CSI "%dd", t->vp.bottom + 1);
     sb_append(sb, row_buffer, ret);
-    
-    
+
     char col_buffer[8];
-    ret = sprintf_s(col_buffer, 8, CSI "%dG", 1); 
+    ret = sprintf_s(col_buffer, 8, CSI "%dG", 1);
     sb_append(sb, col_buffer, ret);
     sb_append(sb, DELETE_LINE, 4);
     sb_append(sb, message, sizeof(message) - 1);
@@ -346,4 +339,27 @@ int handle_input(char c)
             return c;
     }
     return 0;
+}
+
+void delete_selection(Table* t)
+{
+    for (int y = t->cursor.top; y < t->cursor.bottom; ++y) {
+        for (int x = t->cursor.left; x < t->cursor.right; ++x) {
+            Cell* cell = &t->grid[y][x];
+            sb_free(&(cell->value));
+            cell->value = SB_NULL;
+        }
+    }
+}
+
+void delete_char(StringBuffer* sb, int at)
+{
+    if (at < 0) 
+        return;
+    
+    if (sb->length == 0) 
+        return;
+    
+    memmove(&sb->buffer[at], &sb->buffer[at + 1], sb->length - at);
+    sb->length--;
 }

@@ -5,6 +5,7 @@
 
 void sb_append(StringBuffer* sb, const char* s, int length)
 {
+    
     char *new = realloc(sb->buffer, sb->length + length);
     
     if (new == NULL)

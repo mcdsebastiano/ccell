@@ -1,4 +1,8 @@
 exclude/
 run.bat
+*.ilk
+*.pdb
+*.exe
+*.obj
 debug*
 release*
